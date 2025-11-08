@@ -21,14 +21,11 @@
     </div>
     <br>
 
-    <div id="btn-gen" class="btn">3. 生成验证码</div>
-    <br><br>
-
     <div>
-        <label>4. 验证：</label>
+        <label>3. 验证：</label>
         <div id="captcha">
             <div id="text">
-                请先生成验证码
+                正在加载验证码...
             </div>
             <div id="wait" class="show">
                 <div class="loading">
@@ -42,11 +39,8 @@
     </div>
     <br>
 
-    <div id="btn-result" class="btn">5. 获取结果</div>
-    <br><br>
-
     <div>
-        <label for="result">验证结果: </label>
+        <label for="result">4. 验证结果: </label>
         <input class="inp" id="result" type="text" readonly="readonly" placeholder="validate|seccode">
     </div>
     <br>
@@ -70,7 +64,59 @@
             return params;
         }
 
-        // 页面加载时从URL获取参数
+        // 自动初始化验证码
+        function initCaptcha(gt, challenge) {
+            $('#text').hide();
+            $('#wait').show();
+            
+            if (!gt || !challenge) {
+                $('#wait').hide();
+                $('#text').show().text('URL中缺少gt或challenge参数');
+                return;
+            }
+            
+            // 调用 initGeetest 进行初始化
+            initGeetest({
+                gt: gt,
+                challenge: challenge,
+                offline: false,
+                new_captcha: true,
+                product: "popup",
+                width: "300px",
+                https: true
+            }, function(captchaObj) {
+                captchaObj.appendTo('#captcha');
+                captchaObj.onReady(function() {
+                    $("#wait").hide();
+                });
+                
+                // 监听验证成功事件
+                captchaObj.onSuccess(function() {
+                    var result = captchaObj.getValidate();
+                    if (result) {
+                        // 合并结果，用|分割
+                        var combinedResult = result.geetest_validate + '|' + result.geetest_seccode;
+                        $('#result').val(combinedResult);
+                        
+                        // 可选：自动复制到剪贴板
+                        copyToClipboard(combinedResult);
+                    }
+                });
+            });
+        }
+
+        // 复制到剪贴板函数（可选功能）
+        function copyToClipboard(text) {
+            var tempInput = document.createElement("input");
+            tempInput.style = "position: absolute; left: -1000px; top: -1000px";
+            tempInput.value = text;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            document.execCommand("copy");
+            document.body.removeChild(tempInput);
+        }
+
+        // 页面加载时自动初始化
         $(document).ready(function() {
             var urlParams = getUrlParams();
             var gt = urlParams.gt || '';
@@ -79,58 +125,8 @@
             $('#gt').val(gt);
             $('#challenge').val(challenge);
             
-            // 如果参数存在，自动生成验证码
-            if (gt && challenge) {
-                $('#btn-gen').click();
-            }
-        });
-
-        var handler = function (captchaObj) {
-            captchaObj.appendTo('#captcha');
-            captchaObj.onReady(function () {
-                $("#wait").hide();
-            });
-            $('#btn-result').click(function () {
-                var result = captchaObj.getValidate();
-                if (!result) {
-                    return alert('请先完成验证');
-                }
-                // 合并结果，用|分割
-                var combinedResult = result.geetest_validate + '|' + result.geetest_seccode;
-                $('#result').val(combinedResult);
-            });
-            // 更多前端接口说明请参见：http://docs.geetest.com/install/client/web-front/
-        };
-
-        $('#btn-gen').click(function () {
-            $('#text').hide();
-            $('#wait').show();
-            var gt = $('#gt').val();
-            var challenge = $('#challenge').val();
-            
-            if (!gt || !challenge) {
-                alert('请确保URL中包含gt和challenge参数');
-                $('#wait').hide();
-                $('#text').show();
-                return;
-            }
-            
-            // 调用 initGeetest 进行初始化
-            // 参数1：配置参数
-            // 参数2：回调，回调的第一个参数验证码对象，之后可以使用它调用相应的接口
-            initGeetest({
-                // 以下 4 个配置参数为必须，不能缺少
-                gt: gt,
-                challenge: challenge,
-                offline: false, // 表示用户后台检测极验服务器是否宕机
-                new_captcha: true, // 用于宕机时表示是新验证码的宕机
-
-                product: "popup", // 产品形式，包括：float，popup
-                width: "300px",
-                https: true
-
-                // 更多前端配置参数说明请参见：http://docs.geetest.com/install/client/web-front/
-            }, handler);
+            // 自动初始化验证码
+            initCaptcha(gt, challenge);
         });
     </script>
 </body>
